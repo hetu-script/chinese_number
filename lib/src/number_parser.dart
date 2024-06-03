@@ -361,28 +361,74 @@ const _kTraditionalChineseNumberUnits2 = {
 
 const _kTraditionalChinesePointCharacter = '點';
 
-String _toChineseNumber(num value, List<String> digits, Map<int, String> units,
-    Map<int, String> units2) {
+String _toChineseNumber(
+  num value,
+  List<String> digits,
+  Map<int, String> units,
+  Map<int, String> units2, {
+  bool omitInitialOne = true,
+}) {
   String result = '';
   List<String> reversedIntStr = value.toString().split('').reversed.toList();
   int zero = 0;
+  String unit2 = '';
   for (int i = 0; i < reversedIntStr.length; i++) {
     int current = int.parse(reversedIntStr[i]);
+    String? next;
+    if ((i + 1) < reversedIntStr.length) {
+      next = reversedIntStr[i + 1];
+    }
+
+    if (_kSimplifiedChineseNumberUnits2.containsKey(i)) {
+      unit2 = units2[i]!;
+    }
+
     if (current == 0) {
       zero = zero + 1;
       continue;
     }
-    if (zero != 0) {
+
+    if (zero != 0 && result.isNotEmpty && !units2.containsValue(result)) {
       zero = 0;
-      result = digits[0] + result;
+      result = unit2 + digits[0] + result;
+      unit2 = '';
     }
-    if (i % 4 != 0) {
-      result = digits[current] + units[i % 4]! + result;
-    } else if (_kSimplifiedChineseNumberUnits2.containsKey(i)) {
-      result = digits[current] + units2[i]! + result;
+
+    final unit = i % 4;
+    if (unit != 0) {
+      if (omitInitialOne &&
+          current == 1 &&
+          unit == 1 &&
+          (next == '0' || next == null)) {
+        result = units[unit]! + result;
+      } else {
+        result = digits[current] + units[unit]! + result;
+      }
     } else {
-      result = digits[current] + result;
+      result = digits[current] + unit2 + result;
+      unit2 = '';
     }
+  }
+  return result;
+}
+
+String _toFloatChineseNumber(
+  num value,
+  List<String> digits,
+  Map<int, String> units,
+  Map<int, String> units2,
+  String pointCharacter, {
+  bool omitInitialOne = true,
+}) {
+  // 小數點分開
+  List numStrList = value.toString().split('.');
+  String result = _toChineseNumber(
+      int.tryParse(numStrList.first)!, digits, units, units2,
+      omitInitialOne: omitInitialOne);
+  if (numStrList.length > 1) {
+    String rawFloatStr = numStrList.last;
+    final floatStr = _toChineseNumberWithOutRadix(rawFloatStr, digits);
+    result += pointCharacter + floatStr;
   }
   return result;
 }
@@ -397,63 +443,76 @@ String _toChineseNumberWithOutRadix(String source, List<String> digits) {
   return floatStr;
 }
 
-String _toFloatChineseNumber(num value, List<String> digits,
-    Map<int, String> units, Map<int, String> units2, String pointCharacter) {
-  // 小數點分開
-  List numStrList = value.toString().split('.');
-  String result =
-      _toChineseNumber(int.tryParse(numStrList.first)!, digits, units, units2);
-  if (numStrList.length > 1) {
-    String rawFloatStr = numStrList.last;
-    final floatStr = _toChineseNumberWithOutRadix(rawFloatStr, digits);
-    result += pointCharacter + floatStr;
-  }
-  return result;
-}
-
 extension ChineseNumberParser on num {
-  String toSimplifiedChineseNumber() {
+  /// convert to chinese numbers written in simplified characters.
+  ///
+  /// 转换为简体中文数字。默认情况下，数字最左边的“一十”会简写为“十”，例如“13”会转写为“十三”，而不是“一十三”。
+  String toSimplifiedChineseNumber({bool omitInitialOne = true}) {
     if (this is int) {
-      return _toChineseNumber(this, _kSimplifiedChineseNumberDigits,
-          _kSimplifiedChineseNumberUnits, _kSimplifiedChineseNumberUnits2);
+      return _toChineseNumber(
+        this,
+        _kSimplifiedChineseNumberDigits,
+        _kSimplifiedChineseNumberUnits,
+        _kSimplifiedChineseNumberUnits2,
+        omitInitialOne: omitInitialOne,
+      );
     } else {
       return _toFloatChineseNumber(
-          this,
-          _kSimplifiedChineseNumberDigits,
-          _kSimplifiedChineseNumberUnits,
-          _kSimplifiedChineseNumberUnits2,
-          _kSimplifiedChinesePointCharacter);
+        this,
+        _kSimplifiedChineseNumberDigits,
+        _kSimplifiedChineseNumberUnits,
+        _kSimplifiedChineseNumberUnits2,
+        _kSimplifiedChinesePointCharacter,
+        omitInitialOne: omitInitialOne,
+      );
     }
   }
 
+  /// convert to chinese numbers written in traditional characters.
+  ///
+  /// 转换为繁体中文数字。默认情况下，数字最左边的“壹拾”会简写为“拾”，例如“13”会转写为“拾叁”，而不是“壹拾叁”。
+  String toTraditionalChineseNumber({bool omitInitialOne = true}) {
+    if (this is int) {
+      return _toChineseNumber(
+        this,
+        _kTraditionalChineseNumberDigits,
+        _kTraditionalChineseNumberUnits,
+        _kTraditionalChineseNumberUnits2,
+        omitInitialOne: omitInitialOne,
+      );
+    } else {
+      return _toFloatChineseNumber(
+        this,
+        _kTraditionalChineseNumberDigits,
+        _kTraditionalChineseNumberUnits,
+        _kTraditionalChineseNumberUnits2,
+        _kTraditionalChinesePointCharacter,
+        omitInitialOne: omitInitialOne,
+      );
+    }
+  }
+
+  /// convert to formal numbers used in accounting or contracts.
+  ///
+  /// 转换为会计或合同场合所用的大写数字，注意这里不会处理“元整”和“角分厘”等。
   String toFormalSimplifiedChineseNumber() {
     if (this is int) {
       return _toChineseNumber(
-          this,
-          _kFormalSimplifiedChineseNumberDigits,
-          _kFromalSimplifiedChineseNumberUnits,
-          _kFromalSimplifiedChineseNumberUnits2);
+        this,
+        _kFormalSimplifiedChineseNumberDigits,
+        _kFromalSimplifiedChineseNumberUnits,
+        _kFromalSimplifiedChineseNumberUnits2,
+        omitInitialOne: false,
+      );
     } else {
       return _toFloatChineseNumber(
-          this,
-          _kFormalSimplifiedChineseNumberDigits,
-          _kFromalSimplifiedChineseNumberUnits,
-          _kFromalSimplifiedChineseNumberUnits2,
-          _kFormalSimplifiedChinesePointCharacter);
-    }
-  }
-
-  String toTraiditionalChineseNumber() {
-    if (this is int) {
-      return _toChineseNumber(this, _kTraditionalChineseNumberDigits,
-          _kTraditionalChineseNumberUnits, _kTraditionalChineseNumberUnits2);
-    } else {
-      return _toFloatChineseNumber(
-          this,
-          _kTraditionalChineseNumberDigits,
-          _kTraditionalChineseNumberUnits,
-          _kTraditionalChineseNumberUnits2,
-          _kTraditionalChinesePointCharacter);
+        this,
+        _kFormalSimplifiedChineseNumberDigits,
+        _kFromalSimplifiedChineseNumberUnits,
+        _kFromalSimplifiedChineseNumberUnits2,
+        _kFormalSimplifiedChinesePointCharacter,
+        omitInitialOne: false,
+      );
     }
   }
 }

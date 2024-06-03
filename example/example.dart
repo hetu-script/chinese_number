@@ -5,7 +5,7 @@ void main() {
   print(ChineseNumber.tryParse(str));
 
   final n = 214323232003;
-  print(n.toFormalSimplifiedChineseNumber());
+  print(n.toSimplifiedChineseNumber());
 
   final f = 3.1415926;
   print(f.toSimplifiedChineseNumber());
