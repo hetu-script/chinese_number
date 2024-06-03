@@ -1,10 +1,11 @@
 name: chinese_number
 description: Convert Chinese characters into Dart numbers.
-version: 1.0.1
+version: 1.0.2
 homepage: https://github.com/hetu-script/chinese_number
+publish_to: https://pub.dev/
 
 environment:
-  sdk: '>=2.16.1 <3.0.0'
+  sdk: ">=2.16.1 <4.0.0"
 
 dependencies:
   characters: ^1.2.0
